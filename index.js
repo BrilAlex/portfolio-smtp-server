@@ -1,10 +1,19 @@
 const express = require("express");
 const nodemailer = require("nodemailer");
+const cors = require("cors");
+const bodyParser = require("body-parser");
 
 const app = express();
+app.use(cors());
 
-let smtp_login = process.env.SMTP_LOGIN || "----";
-let smtp_password = process.env.SMTP_PASSWORD || "----";
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({extended: false}));
+// parse application/json
+app.use(bodyParser.json());
+
+let smtp_login = process.env.SMTP_LOGIN;
+let smtp_password = process.env.SMTP_PASSWORD;
+let mail_receiver = process.env.MAIL_RECEIVER;
 
 // create reusable transporter object using the default SMTP transport
 let transporter = nodemailer.createTransport({
@@ -21,20 +30,31 @@ app.get("/", function (req, res) {
   res.send("Hello world!");
 });
 
-app.get("/sendMessage", async function (req, res) {
-  // send mail with defined transport object
-  let info = await transporter.sendMail({
-    from: "Portfolio page", // sender address
-    to: "brilalex.portfolio@yandex.by", // list of receivers
-    subject: "Hello from portfolio", // Subject line
-    html: "<b>Hello world</b>", // html body
-  });
+app.post("/sendMessage", function (req, res) {
+  const {name, email, phone, message} = req.body;
 
-  res.send("Email sent ok!");
+  const mailData = {
+    from: smtp_login,
+    to: mail_receiver,
+    subject: "Message from Portfolio",
+    html: `
+        <p>Name: ${name}</p>
+        <p>Email: ${email}</p>
+        <p>Phone: ${phone}</p>
+        <p>Message: ${message}</p>`,
+  };
+
+  // send mail with defined transport object
+  transporter.sendMail(mailData, (error, info) => {
+    if (error) {
+      console.log(error);
+    }
+    res.status(200).send({message: "Mail send"});
+  });
 });
 
 let port = process.env.PORT || 3010;
 
 app.listen(port, function () {
-  console.log("Portfolio SMTP server is listening on port " + port);
+  console.log(`Portfolio SMTP server is listening on port ${port}`);
 });
